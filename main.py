@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
+import git
 import os
 import flask
 import requests
+import shutil
 
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
@@ -89,6 +91,36 @@ def test_create_app_engine_api_request():
   flask.session['credentials'] = credentials_to_dict(credentials)
 
   return flask.jsonify(**response)
+
+
+@app.route('/testClonePublicRepo')
+def test_clone_public_repo():
+  if 'credentials' not in flask.session:
+    return flask.redirect('authorize')
+
+  # Load credentials from the session.
+  credentials = google.oauth2.credentials.Credentials(
+    **flask.session['credentials'])
+
+  project_dir = os.path.dirname(os.path.abspath(__file__))
+  repo_dir = os.path.join(project_dir, 'repo')
+
+  if os.path.exists(repo_dir):
+      shutil.rmtree(repo_dir)
+
+  repo_url = 'https://github.com/markeyev/gcp-self-deploy-poc.git'
+
+  # Clone public repo
+  repo = git.Repo.clone_from(repo_url,
+                             repo_dir,
+                             branch='master',
+                             depth=1)
+  output = os.listdir(repo_dir)
+
+  flask.session['credentials'] = credentials_to_dict(credentials)
+
+  return flask.jsonify({'branch': str(repo.heads.master),
+                        'output': str(output)})
 
 
 @app.route('/authorize')
@@ -189,6 +221,10 @@ def print_index_table():
           '<td>Submit an API request and see a formatted JSON response. '
           '    Go through the authorization flow if there are no stored '
           '    credentials for the user.</td></tr>'
+          
+          '<tr><td><a href="/testClonePublicRepo">Test Clone Public Repo'
+          '</a></td>'
+          '<td>&nbsp;</td></tr>'
 
           '<tr><td><a href="/authorize">Test the auth flow directly</a></td>'
           '<td>Go directly to the authorization flow. If there are stored '
